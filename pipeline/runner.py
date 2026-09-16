@@ -25,7 +25,49 @@ def cmd_status(args):
     log.info("FRESH items total=%d", total)
     for lvl, n in rows:
         log.info("  level %s = %d", lvl, n)
-    print(json.dumps({"fresh_items": total, "by_level": dict(rows)}, indent=2))
+    conn = db.connect(readonly=True)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) AS active_projects,
+               count(*) FILTER (WHERE approved_by_deepseek_level>=3) AS verified_projects
+        FROM ekmi_zero.project
+        WHERE COALESCE(is_deleted,false)=false
+    """)
+    proj = cur.fetchone()
+    cur.execute("""
+        SELECT p.source_id, count(*) AS verified_items
+        FROM ekmi_zero.project_boq_item i
+        JOIN ekmi_zero.project p ON p.project_id=i.project_id
+        WHERE i.approved_by_deepseek_level=3 AND i.verified_by_raj='FRESH'
+          AND COALESCE(p.is_deleted,false)=false
+        GROUP BY p.source_id
+        ORDER BY verified_items DESC
+    """)
+    by_source = cur.fetchall()
+    cur.execute("""
+        SELECT count(*) FROM ekmi_zero.project_company_role r
+        JOIN ekmi_zero.project p ON p.project_id=r.project_id
+        WHERE r.is_winner=1 AND r.approved_by_deepseek_level>=3
+          AND COALESCE(p.is_deleted,false)=false AND COALESCE(r.is_deleted,false)=false
+    """)
+    winners = cur.fetchone()[0]
+    cur.execute("SELECT count(*) FROM ekmi_zero.project_boq_document WHERE fetch_status='fetched'")
+    docs = cur.fetchone()[0]
+    conn.close()
+    report = {
+        "fresh_items": total,
+        "by_level": dict(rows),
+        "active_projects": proj[0],
+        "verified_projects": proj[1],
+        "verified_winners": winners,
+        "fetched_documents": docs,
+        "verified_items_by_source": dict(by_source),
+    }
+    log.info("active projects=%s verified projects=%s", proj[0], proj[1])
+    log.info("verified winners=%s fetched documents=%s", winners, docs)
+    for src, n in by_source:
+        log.info("  %s = %d verified items", src, n)
+    print(json.dumps(report, indent=2, ensure_ascii=False))
 
 
 def cmd_health(args):
