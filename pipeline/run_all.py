@@ -17,16 +17,25 @@ STAGE_MODULES = ["01_discover", "02_classify", "03_download", "04_extract",
 def main():
     started = time.time()
     log.info("=== run_all start ===")
+    failed = []
     for name in STAGE_MODULES:
         log.info("--- stage %s ---", name)
-        try:
-            mod = importlib.import_module(f"pipeline.stages.{name}")
-            mod.main()
-        except Exception as e:
-            log.error("stage %s FAILED: %s", name, e)
-            log.info("run_all stopping at %s (resume by re-running)", name)
-            sys.exit(1)
-    log.info("=== run_all done in %.1fs ===", time.time() - started)
+        ok = False
+        for attempt in range(2):
+            try:
+                mod = importlib.import_module(f"pipeline.stages.{name}")
+                mod.main()
+                ok = True
+                break
+            except Exception as e:
+                log.error("stage %s attempt %d FAILED: %s", name, attempt + 1, e)
+                time.sleep(3)
+        if not ok:
+            failed.append(name)
+    if failed:
+        log.info("run_all finished with errors in stages: %s", ", ".join(failed))
+    else:
+        log.info("=== run_all done in %.1fs ===", time.time() - started)
 
 
 if __name__ == "__main__":
