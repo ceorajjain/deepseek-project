@@ -54,6 +54,7 @@ def main():
         FROM ekmi_zero.project_company_role r
         JOIN ekmi_zero.project p ON p.project_id=r.project_id
         WHERE r.is_winner=1 AND r.evidence_status='VERIFIED_SOURCE_EVIDENCE'
+          AND r.approved_by_deepseek_level>=3
           AND r.source_url IS NOT NULL AND COALESCE(p.is_deleted,false)=false
           AND COALESCE(r.is_deleted,false)=false
     """)
@@ -64,6 +65,7 @@ def main():
         JOIN ekmi_zero.project p ON p.project_id=r.project_id
         WHERE r.is_winner=0 AND r.role_type='bidder'
           AND r.evidence_status='VERIFIED_SOURCE_EVIDENCE'
+          AND r.approved_by_deepseek_level>=3
           AND COALESCE(p.is_deleted,false)=false
           AND COALESCE(r.is_deleted,false)=false
     """)

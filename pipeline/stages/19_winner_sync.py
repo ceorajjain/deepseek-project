@@ -24,10 +24,7 @@ def main():
     cur = conn.cursor()
     cur.execute("""
         UPDATE ekmi_zero.project_company_role r
-        SET evidence_status='VERIFIED_SOURCE_EVIDENCE',
-            approved_by_deepseek=true,
-            approved_by_deepseek_level=3,
-            evidence_bundle_json = COALESCE(evidence_bundle_json, '{}'::jsonb)
+        SET evidence_bundle_json = COALESCE(evidence_bundle_json, '{}'::jsonb)
                 || jsonb_build_object('source_url', r.source_url, 'actor', %s),
             updated_at=now()
         FROM ekmi_zero.project p
@@ -35,6 +32,8 @@ def main():
           AND COALESCE(p.is_deleted,false)=false
           AND COALESCE(r.is_deleted,false)=false
           AND p.granite_relevance_status IN %s
+          AND r.is_winner=1
+          AND r.approved_by_deepseek_level>=3
           AND r.source_url IS NOT NULL
           AND r.source_url <> ''
     """, (config.ACTOR, RELEVANT))
